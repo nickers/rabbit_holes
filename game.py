@@ -3,6 +3,7 @@ from twisted.web import resource, server
 from twisted.web.static import Registry
 from twisted.internet import reactor, defer
 import simplejson as json
+from commands import process_message
 from charades.ajax_queue import *
 from charades.game_state import game_state
 
@@ -73,7 +74,8 @@ class GameCommandProcess(resource.Resource):
 		command = json.loads(command)
 		
 		game = game_state.get(game_id)
-		game.queue.add_message(command);
+		print process_message(game, command)
+		#game.queue.add_message(command);
 		
 		return "OK"
 

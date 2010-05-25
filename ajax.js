@@ -21,7 +21,6 @@ function Ajax() {
 		return function() {
 			// Completed
 			if ((req.readyState == 4)) {
-				alert(req.status);
 				if (req.status == 200) {
 					if (obj.onload) obj.onload(req);
 				}

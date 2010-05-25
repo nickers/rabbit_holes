@@ -22,7 +22,6 @@
 				JSON.stringify(msg),
 				{
 					onerror:function(r) {
-						alert(r.responseText);
 						alert('error');
 					}
 				}
@@ -35,7 +34,7 @@
 	var messages_types = {
 		'say' : function(msg) {
 			var div = document.createElement("div");
-			div.innerHTML = msg.msg;
+			div.innerText = msg.msg;
 			$("history").appendChild(div);
 		},
 	};
@@ -71,11 +70,12 @@
 	</script>
 </head>
 <body onload="reset_focus();messages_loop();">
-	<div id="history"></div>
-
+	
 	<form method="get" onsubmit="return send_text('cmd');">
 		<input type="text" id="cmd" />
 	</form>
+	
+	<div id="history"></div>
 
 </body>
 </html>

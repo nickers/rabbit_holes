@@ -13,12 +13,13 @@ class ajax_queue:
 		self.listeners_lock = threading.Lock()
 		self.notify_lock = threading.Lock()
 	
-	def add_message(self, message):
+	def add_message(self, message, notif=False):
 		""" Dodaj wiadomosc do listy na stale """
 		self.data_lock.acquire()
 		self.data.append(message)
 		self.data_lock.release()
-		self.__notify()
+		if notif:
+			self.__notify()
 		return None
 	
 	#def send_message(self, message):
@@ -54,9 +55,11 @@ class ajax_queue:
 		try:
 			part = self.data[next_message:]
 			encoded = json.dumps(part)
+			print "process: %s" %(encoded,)
 			dest.write(encoded)
 			dest.finish()
-			print "process: %s" %(encoded,)
 		except:
+			import sys
 			print "Error while sending data"
+			print sys.exc_info()[0]
 	
