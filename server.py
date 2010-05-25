@@ -6,8 +6,12 @@ from game import *
 
 root = static.File("./")
 root.putChild('test', Example())
+
 root.putChild('game', Game())
-root.processors = { '.py': script.ResourceScript}
+root.putChild('commands', GameCommandsWait())
+root.putChild('send_command', GameCommandProcess())
+
+root.processors = { '.py': script.ResourceScript }
 root.putChild("doc", static.File("/usr/share/doc"))
 reactor.listenTCP(1080, server.Site(root))
 reactor.run()

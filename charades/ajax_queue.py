@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from twisted.web import resource, server
 from twisted.internet import reactor, defer
 import threading, simplejson as json
@@ -27,7 +28,11 @@ class ajax_queue:
 	
 	def add_listener(self, listener, next_message=0):
 		self.listeners_lock.acquire()
-		self.listeners.append((listener, next_message))
+		part = self.data[next_message:]
+		if (len(part)==0):
+			self.listeners.append((listener, next_message))
+		else:
+			self.__send_part(listener, next_message)
 		self.listeners_lock.release()
 		return True
 	
@@ -38,14 +43,20 @@ class ajax_queue:
 		self.listeners_lock.release()
 		
 		#self.notify_lock.acquire()
-		for (dest,next_message) in sendto:
-			print dest, " == ", next_message
-			part = self.data[next_message:]
-			encoded = json.dumps(part)
-			dest.write(encoded)
-			dest.finish()
+		for (dest, next_message) in sendto:
+			self.__send_part(dest, next_message)
 			
 		#self.notify_lock.release()
 		return None
 	
+	def __send_part(self, dest, next_message):
+		print dest, " == ", next_message
+		try:
+			part = self.data[next_message:]
+			encoded = json.dumps(part)
+			dest.write(encoded)
+			dest.finish()
+			print "process: %s" %(encoded,)
+		except:
+			print "Error while sending data"
 	

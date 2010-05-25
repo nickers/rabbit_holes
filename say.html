@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+    <title>test</title>
+	<script type="text/javascript" src="ajax.js"></script>
+	<script type="text/javascript" src="json2.js"></script>
+	
+	<script type="text/javascript">
+	
+	function reset_focus() {
+		$('cmd').focus();
+	}
+	
+	var game_id = "id";
+	
+	function send_text(id) {
+		var obj = $(id)
+		var msg = {msg:obj.value, user:'nickers', action:'say'};
+		obj.value = "";
+		Ajax().post( '/send_command/' + game_id,
+				JSON.stringify(msg),
+				{
+					onerror:function(r) {
+						alert(r.responseText);
+						alert('error');
+					}
+				}
+		);
+		
+		reset_focus();
+		return false;
+	}
+	
+	var messages_types = {
+		'say' : function(msg) {
+			var div = document.createElement("div");
+			div.innerHTML = msg.msg;
+			$("history").appendChild(div);
+		},
+	};
+	
+	function process_message(msg) {
+		var type = msg.action;
+		func = messages_types[type];
+		if (typeof func == 'function')
+			func(msg);
+		else
+			alert('Exception: unknown message type');
+	}
+	
+	function messages_loop() {
+		var next_id = 0;
+		function request_next_part() {
+			Ajax().get("/commands/" + game_id  + "/" + next_id,
+					{
+						onload: function(r) {
+							var data = JSON.parse(r.responseText);
+							for (x in data) {
+								process_message(data[x]);
+								next_id = next_id + 1;
+							}
+							request_next_part();
+						}
+					}
+			); // ajax.get()
+		};// function request_next_part
+		
+		request_next_part();
+	}
+	</script>
+</head>
+<body onload="reset_focus();messages_loop();">
+	<div id="history"></div>
+
+	<form method="get" onsubmit="return send_text('cmd');">
+		<input type="text" id="cmd" />
+	</form>
+
+</body>
+</html>
