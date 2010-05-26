@@ -5,6 +5,15 @@
     <title>test</title>
 	<script type="text/javascript" src="ajax.js"></script>
 	<script type="text/javascript" src="json2.js"></script>
+	<style type="text/css">
+	#game_map {
+		border: 1px solid #000;
+	}
+	
+	#history {
+		border: 1px solid #000;
+	}
+	</style>
 	
 	<script type="text/javascript">
 	
@@ -13,6 +22,7 @@
 	}
 	
 	var game_id = "id";
+	var map = game_map();
 	
 	function send_text(id) {
 		var obj = $(id)
@@ -37,13 +47,23 @@
 			div.innerText = msg.msg;
 			$("history").appendChild(div);
 		},
+		'set_rabbit' : function(msg) {
+			map.set_rabbit(msg.x, msg.y, msg.color)
+		},
+		'set_map' : function(msg) {
+			map.set_map(msg.x, msg.y, msg.color)
+		}
 	};
 	
 	function process_message(msg) {
 		var type = msg.action;
 		func = messages_types[type];
-		if (typeof func == 'function')
+		if (typeof func == 'function') {
+			var div = document.createElement("div");
+			div.innerText = "# Action: " + msg.action;
+			$("history").appendChild(div);
 			func(msg);
+		}
 		else
 			alert('Exception: unknown message type');
 	}
@@ -59,6 +79,7 @@
 								process_message(data[x]);
 								next_id = next_id + 1;
 							}
+							map.display();
 							request_next_part();
 						}
 					}
@@ -67,6 +88,99 @@
 		
 		request_next_part();
 	}
+	
+	function game_map() {
+		var obj = {}
+		
+		FT = {}
+		FT.EMPTY = 0
+		FT.HOLE  = 1
+		FT.BLOCK = 2
+		FT.BLACK = 10
+		FT.WHITE = 11
+		
+		obj.DIM = 6;
+		
+		obj.rabbits = new Array(this.DIM);
+		obj.map = new Array(this.DIM);
+		
+		// clear map
+		for (var x=0; x<obj.DIM; x++) {
+			obj.rabbits[x] = new Array(obj.DIM);
+			obj.map[x] = new Array(obj.DIM);
+			for (var y=0; y<obj.DIM; y++) {
+				obj.rabbits[x][y] = FT.EMPTY;
+				obj.map[x][y] = FT.EMPTY;
+			}
+		}
+		
+		obj.display = function() {
+			var canvas = $("game_map");
+			var ctx = canvas.getContext('2d')
+			
+			//clear
+			ctx.fillStyle = 'rgb(255,255,255)'
+			ctx.fillRect(0,0,480,480)
+			
+			for (var y=0; y<this.DIM; y++)
+			for (var x=0; x<this.DIM; x++) {
+				ctx.fillStyle = 'rgb(200,200,200)'
+				ctx.fillRect(x*80+1, y*80+1, 80-2, 80-2)
+				
+				switch (this.map[x][y]) {
+					case FT.BLOCK:
+						ctx.fillStyle = 'rgb(255,255,255)'
+						ctx.fillRect(x*80+1, y*80+1, 80-2, 80-2)
+						break;
+					
+					case FT.HOLE:
+						ctx.beginPath();
+						ctx.fillStyle = 'rgb(0,200,0)'
+						ctx.arc(x*80+40, y*80+40, 38, 0, Math.PI*2, true)
+						ctx.fill();
+						ctx.beginPath();
+						ctx.fillStyle = 'rgb(100,100,100)'
+						ctx.arc(x*80+40, y*80+40, 35, 0, Math.PI*2, true)
+						ctx.fill();
+						break;
+				}
+				
+				switch (this.rabbits[x][y]) {
+					case FT.BLACK:
+						ctx.fillStyle = 'rgb(0,0,0)'
+						ctx.beginPath();
+						ctx.arc(x*80+40, y*80+40, 30, 0, Math.PI*2, true)
+						ctx.fill();
+						ctx.strokeStyle = 'rgb(2,0,250)'
+						ctx.beginPath();
+						ctx.arc(x*80+40, y*80+40, 30, 0, Math.PI*2, true)
+						ctx.stroke();
+						break;
+					
+					case FT.WHITE:
+						ctx.fillStyle = 'rgb(255,255,255)'
+						ctx.beginPath();
+						ctx.arc(x*80+40, y*80+40, 30, 0, Math.PI*2, true)
+						ctx.fill();
+						ctx.strokeStyle = 'rgb(2,0,250)'
+						ctx.beginPath();
+						ctx.arc(x*80+40, y*80+40, 30, 0, Math.PI*2, true)
+						ctx.stroke();
+						break;
+				}
+			}
+		};
+		
+		obj.set_rabbit = function(x,y,c) {
+			this.rabbits[x][y] = c;
+		}
+		
+		obj.set_map = function(x,y,c) {
+			this.map[x][y] = c;
+		}
+		
+		return obj;
+	}
 	</script>
 </head>
 <body onload="reset_focus();messages_loop();">
@@ -74,7 +188,7 @@
 	<form method="get" onsubmit="return send_text('cmd');">
 		<input type="text" id="cmd" />
 	</form>
-	
+	<canvas id="game_map" width="480" height="480">you must support canvas!</canvas>  
 	<div id="history"></div>
 
 </body>

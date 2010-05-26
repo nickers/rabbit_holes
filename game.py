@@ -3,7 +3,7 @@ from twisted.web import resource, server
 from twisted.web.static import Registry
 from twisted.internet import reactor, defer
 import simplejson as json
-from commands import process_message
+from commands import process_message, send_map_command
 from charades.ajax_queue import *
 from charades.game_state import game_state
 
@@ -55,6 +55,9 @@ class GameCommandsWait(resource.Resource):
 			game_id = unicode(request.postpath[0])
 			next_id = int(request.postpath[1])
 			
+			if not game_state.exists(game_id):
+				game = game_state.get(game_id)
+				process_message(game, send_map_command('nickers').__dict__)
 			game = game_state.get(game_id)
 			game.queue.add_listener(request, next_id)
 		
@@ -72,7 +75,10 @@ class GameCommandProcess(resource.Resource):
 		request.content.seek(0, 0)
 		command = request.content.read()
 		command = json.loads(command)
-		
+
+		if not game_state.exists(game_id):
+			game = game_state.get(game_id)
+			process_message(game, send_map_command('nickers').__dict__)
 		game = game_state.get(game_id)
 		print process_message(game, command)
 		#game.queue.add_message(command);

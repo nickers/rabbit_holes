@@ -31,7 +31,7 @@ class move_command(user_command):
 	
 	class add_rabbit(user_command):
 		def __init__(self, who, x, y, c):
-			self.action = 'add_rabbit'
+			self.action = 'set_rabbit'
 			self.user = who
 			self.x = x
 			self.y = y
@@ -39,10 +39,11 @@ class move_command(user_command):
 	
 	class del_rabbit(user_command):
 		def __init__(self, who, x, y):
-			self.action = 'del_rabbit'
+			self.action = 'set_rabbit'
 			self.user = who
 			self.x = x
 			self.y = y
+			self.color = FT.EMPTY
 	
 	def process(self, game, msg):
 		dx = (int)(math.fabs(msg['srcX']-msg['dstX']))
@@ -102,11 +103,43 @@ class move_command(user_command):
 		
 		return valid
 		
+# ---------------
+class send_map_command(user_command):
+	class set_rabbit(user_command):
+		def __init__(self, who, x, y, c):
+			self.action = 'set_rabbit'
+			self.user = who
+			self.x = x
+			self.y = y
+			self.color = c
+			
+	class set_map(user_command):
+		def __init__(self, who, x, y, c):
+			self.action = 'set_map'
+			self.user = who
+			self.x = x
+			self.y = y
+			self.color = c
+	
+	def __init__(self, user=None):
+		self.action = 'send_map'
+		self.user = user
+		
+	
+	def validate(self, game, msg):
+		return True
+	
+	def process(self, game, msg):
+		who = msg['user']
+		dim = len(game.map)
+		return ([self.set_rabbit(who,x,y,game.rabbits[x][y]) for y in range(dim) for x in range(dim)]
+			+ [self.set_map(who,x,y,game.map[x][y]) for y in range(dim) for x in range(dim)])
 
 commands_map = {
 	'move' : move_command,
 	#'exit' : exit_command,
-	'say' : say_command
+	'say' : say_command,
+	'send_map' :  send_map_command
 }
 
 def process_message(game, msg):
