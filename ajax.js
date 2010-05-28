@@ -1,6 +1,6 @@
-function $(id) {
+var $ = function (id) {
 	return document.getElementById(id);
-}
+};
 
 function Ajax() {
 	var obj = new Object();
