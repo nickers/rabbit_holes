@@ -12,6 +12,13 @@
 	
 	#history {
 		border: 1px solid #000;
+		height: 10em;
+		overflow: auto;
+	}
+	
+	#history div {
+		border-top: 1px dashed #888;
+		padding: 1px;
 	}
 	</style>
 	
@@ -21,13 +28,48 @@
 		$('cmd').focus();
 	}
 	
+	function getObjectPagePosition(obj) {
+		
+		return {x:0,y:0};
+		
+		var obj = $(obj);
+		var posX = obj.offsetLeft;var posY = obj.offsetTop;
+		while(obj.offsetParent) {
+			posX=posX+obj.offsetParent.offsetLeft;
+			posY=posY+obj.offsetParent.offsetTop;
+			if(obj==document.getElementsByTagName('body')[0]) {
+				break
+			}
+			else {
+				obj=obj.offsetParent;
+			}
+		}
+		return {x:posX, y:posY}
+	}
+	
+	function temp(){
+		return getObjectPagePosition('game_map')
+		/*var obj = $('game_map');
+		var posX = obj.offsetLeft;var posY = obj.offsetTop;
+		while(obj.offsetParent) {
+			posX=posX+obj.offsetParent.offsetLeft;
+			posY=posY+obj.offsetParent.offsetTop;
+			if(obj==document.getElementsByTagName('body')[0]) {
+				break
+			}
+			else {
+				obj=obj.offsetParent;
+			}
+		}
+		return {x:posX, y:posY}
+		*/
+	}
+	
 	var game_id = "id";
+	var game_turn = 11;
 	var map = game_map();
 	
-	function send_text(id) {
-		var obj = $(id)
-		var msg = {msg:obj.value, user:'nickers', action:'say'};
-		obj.value = "";
+	function send_msg(msg) {
 		Ajax().post( '/send_command/' + game_id,
 				JSON.stringify(msg),
 				{
@@ -36,7 +78,13 @@
 					}
 				}
 		);
-		
+	}
+	
+	function send_text(id) {
+		var obj = $(id)
+		var msg = {msg:obj.value, user:'nickers', action:'say'};
+		obj.value = "";
+		send_msg(msg);
 		reset_focus();
 		return false;
 	}
@@ -52,6 +100,9 @@
 		},
 		'set_map' : function(msg) {
 			map.set_map(msg.x, msg.y, msg.color)
+		},
+		'set_round' : function(msg) {
+			game_turn = msg.color
 		}
 	};
 	
@@ -60,8 +111,9 @@
 		func = messages_types[type];
 		if (typeof func == 'function') {
 			var div = document.createElement("div");
-			div.innerText = "# Action: " + msg.action;
-			$("history").appendChild(div);
+			div.innerText = "# Action: " + JSON.stringify(msg);
+			//$("history").appendChild(div);
+			$("history").insertBefore(div, $("history").firstChild);
 			func(msg);
 		}
 		else
@@ -98,22 +150,27 @@
 		FT.BLOCK = 2
 		FT.BLACK = 10
 		FT.WHITE = 11
+		obj.FT = FT;
 		
 		obj.DIM = 6;
+		obj.selection = {x:-1, y:-1};
 		
 		obj.rabbits = new Array(this.DIM);
 		obj.map = new Array(this.DIM);
 		
 		// clear map
-		for (var x=0; x<obj.DIM; x++) {
-			obj.rabbits[x] = new Array(obj.DIM);
-			obj.map[x] = new Array(obj.DIM);
-			for (var y=0; y<obj.DIM; y++) {
-				obj.rabbits[x][y] = FT.EMPTY;
-				obj.map[x][y] = FT.EMPTY;
+		obj.reset_map = function () {
+			for (var x=0; x<obj.DIM; x++) {
+				this.rabbits[x] = new Array(this.DIM);
+				this.map[x] = new Array(this.DIM);
+				for (var y=0; y<this.DIM; y++) {
+					this.rabbits[x][y] = FT.EMPTY;
+					this.map[x][y] = FT.EMPTY;
+				}
 			}
-		}
+		};
 		
+		// render map
 		obj.display = function() {
 			var canvas = $("game_map");
 			var ctx = canvas.getContext('2d')
@@ -179,11 +236,194 @@
 			this.map[x][y] = c;
 		}
 		
+		
+		obj.set_selection = function(pkt) {
+			if (pkt.src) {
+				this.selection = {x:pkt.src.x, y:pkt.src.y};
+			} else {
+				this.selection = {x:-1, y:-1};
+			}
+		};
+		
+		obj.reset_map();
 		return obj;
+	}
+	
+	function mousedown_response(username, map_id, change_callback) {
+		
+		var clicker = {
+			src : {x:-1, y:-1},
+			dest: {x:-1, y:-1},
+			reaction : null,
+		};
+		
+		clicker.first_click = function(ev) {
+			var of = getObjectPagePosition(map_id);
+			//var e = { x:ev.clientX - of.x, y:ev.clientY - of.y };
+			var e = { x:ev.offsetX, y:ev.offsetY};
+			e.x = Math.floor(e.x/80);
+			e.y = Math.floor(e.y/80);
+			if (map.rabbits[e.x][e.y]==game_turn) {
+				this.src = e;
+				this.reaction = this.second_click;
+			} else {
+				this.src = {x:-1, y:-1};
+			}
+			if (change_callback) change_callback(this);
+		}
+		
+		clicker.second_click = function(ev) {
+			var of = getObjectPagePosition(map_id);
+			//var e = { x:ev.clientX - of.x, y:ev.clientY - of.y };
+			var e = { x:ev.offsetX, y:ev.offsetY};
+			e.x = Math.floor(e.x/80);
+			e.y = Math.floor(e.y/80);
+			
+			// move to empty field
+			if (map.rabbits[e.x][e.y]==map.FT.EMPTY) {
+				var dx = e.x - this.src.x;
+				var dy = e.y - this.src.y;
+				var cx = this.src.x + Math.floor(dx/2);
+				var cy = this.src.y + Math.floor(dy/2);
+				
+				if ((Math.abs(dx)<=1 && Math.abs(dy)<=1)
+					||
+					( // or jump -- begin
+						// jumps over your color...
+						map.rabbits[cx][cy]==map.rabbits[this.src.x][this.src.y] 
+						&&
+						// and you really jump(dist 2 fields)
+						(
+							(Math.abs(dx)==2 && Math.abs(dy)==2)
+							||
+							(Math.abs(dx)==2 && Math.abs(dy)==0)
+							||
+							(Math.abs(dx)==0 && Math.abs(dy)==2)
+						)
+					) // or jump -- end
+				) // end if
+				{
+					this.dest = e;
+					this.send_values();
+				}
+			} else if (map.rabbits[e.x][e.y]==game_turn) {
+				// unselect
+				if (this.src.x==e.x && this.src.y==e.y) {
+					this.src = {x:-1, y:-1};
+					this.dest= {x:-1, y:-1};
+					this.reaction = this.first_click;
+				// change selection
+				} else {
+					this.src = e;
+				}
+				if (change_callback) change_callback(this);
+			}
+		}
+		
+		clicker.send_values = function() {
+			var msg = {
+					user: username, action:'move',
+					'srcX': this.src.x,  'srcY': this.src.y,
+					'dstX': this.dest.x, 'dstY': this.dest.y,
+				};
+				send_msg(msg);
+				this.reaction = this.first_click;
+				this.src = {x:-1, y:-1};
+				if (change_callback) change_callback(this);
+		};
+		
+		clicker.reaction = clicker.first_click;
+		
+		//return clicker;
+		return function (e) {
+			var m = "Color: " + game_turn + " \n"
+				+ "src: " + clicker.src.x + "," + clicker.src.y + " \n"
+				+ "dst: " + clicker.dest.x + "," + clicker.dest.y + " \n";
+			document.title = m;
+			return clicker.reaction(e);
+		};
+	};
+	
+	function attach_signals() {
+		
+		var canvas = $("game_map")
+		canvas.onclick = mousedown_response("nickers", "game_map", function(o){map.set_selection(o);} );
+		return 0;
+		{  // klamerki do zwiniecia komentarza == begin
+		/**
+		var select_step = 0;
+		var sel1 = null;
+		var sel2 = null;
+		
+		var canvas = $("game_map")
+		canvas.onmousedown = function(ev){
+			if (select_step==-1)
+				select_step = 0;
+				
+			switch (select_step) {
+				// pierwsze wybranie
+				case 0:
+					var of = temp();
+					var e = { x:ev.clientX - of.x, y:ev.clientY - of.y }
+					e.x = Math.floor(e.x/80);
+					e.y = Math.floor(e.y/80);
+					if (map.rabbits[e.x][e.y]==game_turn) {
+						sel1 = e
+						sel2 = null;
+						select_step = 1;
+					} else {
+						sel1 = null;
+						select_step = -1;
+					}
+					break;
+				
+				case 2:
+					var of = temp();
+					var e = { x:ev.clientX - of.x, y:ev.clientY - of.y }
+					e.x = Math.floor(e.x/80);
+					e.y = Math.floor(e.y/80);
+					
+					if (map.rabbits[e.x][e.y]==map.FT.EMPTY) {
+						sel2 = e;
+						select_step = 3;
+					} else if (map.rabbits[e.x][e.y]==game_turn) {
+						if (sel1==null || (sel1.x==e.x && sel1.y==e.y)) {
+							sel1 = null;
+							select_step = -1;
+						} else {
+							sel1 = e;
+						}
+					}
+					break;
+			}
+			document.title = select_step
+					+ (sel1==null ? "(null)" : " => (" + sel1.x + ";" + sel1.y + ")")
+					+ (sel2==null ? "(null)" : " => (" + sel2.x + ";" + sel2.y + ")" );
+		};
+		
+		canvas.onmouseup = function (ev) {
+			if (select_step==1) select_step++;
+			document.title = select_step
+					+ (sel1==null ? "(null)" : " => (" + sel1.x + ";" + sel1.y + ")")
+					+ (sel2==null ? "(null)" : " => (" + sel2.x + ";" + sel2.y + ")" );
+					
+			if (select_step==3) {
+				var msg = {user:'nickers', action:'move',
+					'srcX': sel1.x, 'srcY': sel1.y,
+					'dstX': sel2.x, 'dstY': sel2.y,
+				};
+				
+				send_msg(msg);
+				select_step = 0;
+				game_turn = 0;
+			}
+		}
+		*/
+		} // klamerki do zwiniecia komentarza -- end
 	}
 	</script>
 </head>
-<body onload="reset_focus();messages_loop();">
+<body onload="reset_focus();messages_loop();attach_signals();">
 	
 	<form method="get" onsubmit="return send_text('cmd');">
 		<input type="text" id="cmd" />

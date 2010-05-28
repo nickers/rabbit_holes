@@ -6,11 +6,6 @@ class user_command:
 		self.action = ""
 		self.user = ""
 
-class move_command(user_command):
-	def validate(self, game):
-		""" sprawdz czy ruch jest prawidlowy """
-		return True
-
 class say_command(user_command):
 	
 	class say_to_all(user_command):
@@ -18,6 +13,8 @@ class say_command(user_command):
 			self.action = 'say'
 			self.user = msg['user']
 			self.msg = msg['msg']
+		def process(self, game):
+			pass
 	
 	def validate(self, game, msg):
 		""" sprawdz czy ruch jest prawidlowy """
@@ -36,6 +33,9 @@ class move_command(user_command):
 			self.x = x
 			self.y = y
 			self.color = c
+		
+		def process(self, game):
+			game.rabbits[self.x][self.y] = self.color
 	
 	class del_rabbit(user_command):
 		def __init__(self, who, x, y):
@@ -44,17 +44,34 @@ class move_command(user_command):
 			self.x = x
 			self.y = y
 			self.color = FT.EMPTY
+		
+		def process(self, game):
+			game.rabbits[self.x][self.y] = self.color
+	
+	class set_round(user_command):
+		def __init__(self, c):
+			self.action = 'set_round'
+			self.user = ''
+			self.color = c
+		def process(self, game):
+			pass
 	
 	def process(self, game, msg):
+		import math
 		dx = (int)(math.fabs(msg['srcX']-msg['dstX']))
 		dy = (int)(math.fabs(msg['srcY']-msg['dstY']))
 		who = game.players[game.round[0]]
+		col = game.round[0]
+		
+		game.change_round()
 		
 		if (dx>=2 or dy>=2):
-			ret = [add_rabbit(who, msg['dstX'], msg['dstY'], game.round[0])]
+			return [move_command.add_rabbit(who, msg['dstX'], msg['dstY'], col),
+					move_command.set_round(game.round[0])]
 		else:
-			return [del_rabbit(who, msg['srcX'], msg['srcY']),
-					add_rabbit(who, msg['dstX'], msg['dstY'], game.round[0])]
+			return [move_command.del_rabbit(who, msg['srcX'], msg['srcY']),
+					move_command.add_rabbit(who, msg['dstX'], msg['dstY'], col),
+					move_command.set_round(game.round[0])]
 		
 	def validate(self, game, msg):
 		import math
@@ -83,6 +100,7 @@ class move_command(user_command):
 			if dstMap!=FT.EMPTY and dstMap!=FT.HOLE:
 				valid = False
 			
+			print "valid: %s " % (valid,)
 			# move has valid vector
 			dx = (int)(math.fabs(msg['srcX']-msg['dstX']))
 			dy = (int)(math.fabs(msg['srcY']-msg['dstY']))
@@ -91,15 +109,25 @@ class move_command(user_command):
 				validMoves.index((dx,dy))
 			except: # invalid move
 				valid = False
+				
+			print "vxxxxalid: %s " % (valid,)
 			
 			# if jump then must jump over own color
 			if dx==2 or dy==2:
-				over = game.rabbits[int((msg['srxX']+msg['dstX'])/2)][int((msg['srxY']+msg['dstY'])/2)]
+				print "++++ >> ", int((msg['srcX']+msg['dstX'])/2), " ; ", int((msg['srcY']+msg['dstY'])/2)
+				over = game.rabbits[int((msg['srcX']+msg['dstX'])/2)][int((msg['srcY']+msg['dstY'])/2)]
+				print round, " over ", over
 				if over!=round:
 					valid = False
 			
-		except: # mus be invalid position 
+		except: # mus be invalid position
+			print " => Exception"
 			valid = False
+		
+		for y in range(6):
+			for x in range(6):
+				print game.rabbits[x][y], " ",
+			print ""
 		
 		return valid
 		
@@ -112,6 +140,8 @@ class send_map_command(user_command):
 			self.x = x
 			self.y = y
 			self.color = c
+		def process(self, game):
+			pass
 			
 	class set_map(user_command):
 		def __init__(self, who, x, y, c):
@@ -120,6 +150,8 @@ class send_map_command(user_command):
 			self.x = x
 			self.y = y
 			self.color = c
+		def process(self, game):
+			pass
 	
 	def __init__(self, user=None):
 		self.action = 'send_map'
@@ -154,6 +186,7 @@ def process_message(game, msg):
 		cnt = len(msgs)
 		for i in range(cnt):
 			game.queue.add_message(msgs[i].__dict__, i==cnt-1)
+			msgs[i].process(game)
 		return True
 	return False
 
