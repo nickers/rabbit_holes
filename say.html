@@ -5,6 +5,7 @@
     <title>test</title>
 	<script type="text/javascript" src="ajax.js"></script>
 	<script type="text/javascript" src="json2.js"></script>
+	<script type="text/javascript" src="messages.js"></script>
 	<style type="text/css">
 	#game_map {
 		border: 1px solid #000;
@@ -33,7 +34,7 @@
 	
 	function getObjectPagePosition(obj) {
 		
-		return {x:0,y:0};
+//		return {x:0,y:0};
 		
 		var obj = $(obj);
 		var posX = obj.offsetLeft;var posY = obj.offsetTop;
@@ -50,84 +51,21 @@
 		return {x:posX, y:posY}
 	}
 	
-	function temp(){
-		return getObjectPagePosition('game_map')
-	}
-	
 	var game_id = "id";
 	var game_turn = 11;
+	var player_name = "nickers";
+	var player_color = 11;
+	var msg_system = null;
 	var map = game_map();
 	
-	function send_msg(msg) {
-		Ajax().post( '/send_command/' + game_id,
-				JSON.stringify(msg),
-				{
-					onerror:function(r) {
-						alert('error');
-					}
-				}
-		);
-	}
 	
 	function send_text(id) {
 		var obj = $(id)
 		var msg = {msg:obj.value, user:'nickers', action:'say'};
 		obj.value = "";
-		send_msg(msg);
+		send_msg(msg, game_id);
 		reset_focus();
 		return false;
-	}
-	
-	var messages_types = {
-		'say' : function(msg) {
-			var div = document.createElement("div");
-			div.innerText = msg.msg;
-			$("history").insertBefore(div, $("history").firstChild);
-		},
-		'set_rabbit' : function(msg) {
-			map.set_rabbit(msg.x, msg.y, msg.color)
-		},
-		'set_map' : function(msg) {
-			map.set_map(msg.x, msg.y, msg.color)
-		},
-		'set_round' : function(msg) {
-			game_turn = msg.color
-		}
-	};
-	
-	function process_message(msg) {
-		var type = msg.action;
-		func = messages_types[type];
-		if (typeof func == 'function') {
-			var div = document.createElement("div");
-			div.innerText = "# Action: " + JSON.stringify(msg);
-			//$("history").appendChild(div);
-			$("history").insertBefore(div, $("history").firstChild);
-			func(msg);
-		}
-		else
-			alert('Exception: unknown message type');
-	}
-	
-	function messages_loop() {
-		var next_id = 0;
-		function request_next_part() {
-			Ajax().get("/commands/" + game_id  + "/" + next_id,
-					{
-						onload: function(r) {
-							var data = JSON.parse(r.responseText);
-							for (x in data) {
-								process_message(data[x]);
-								next_id = next_id + 1;
-							}
-							map.display();
-							request_next_part();
-						}
-					}
-			); // ajax.get()
-		};// function request_next_part
-		
-		request_next_part();
 	}
 	
 	function game_map() {
@@ -250,11 +188,17 @@
 		};
 		
 		clicker.first_click = function(ev) {
+			
+			if (player_color!=game_turn)
+				return;
+			
 			var of = getObjectPagePosition(map_id);
 			//var e = { x:ev.clientX - of.x, y:ev.clientY - of.y };
-			var e = { x:ev.offsetX, y:ev.offsetY};
+			//var e = { x:ev.offsetX, y:ev.offsetY};
+			var e = { x:ev.pageX- of.x, y:ev.pageY - of.y };
 			e.x = Math.floor(e.x/80);
 			e.y = Math.floor(e.y/80);
+			
 			if (map.rabbits[e.x][e.y]==game_turn && map.map[e.x][e.y]==game_map().FT.EMPTY) {
 				this.src = e;
 				this.reaction = this.second_click;
@@ -267,7 +211,8 @@
 		clicker.second_click = function(ev) {
 			var of = getObjectPagePosition(map_id);
 			//var e = { x:ev.clientX - of.x, y:ev.clientY - of.y };
-			var e = { x:ev.offsetX, y:ev.offsetY};
+			//var e = { x:ev.offsetX, y:ev.offsetY};
+			var e = { x:ev.pageX- of.x, y:ev.pageY - of.y };
 			e.x = Math.floor(e.x/80);
 			e.y = Math.floor(e.y/80);
 			
@@ -318,13 +263,18 @@
 					'srcX': this.src.x,  'srcY': this.src.y,
 					'dstX': this.dest.x, 'dstY': this.dest.y,
 				};
-				send_msg(msg);
-				this.reaction = this.first_click;
+				msg_system.send_msg(msg);	
+				this.reaction = function() {};
 				this.src = {x:-1, y:-1};
+				this.dest= {x:-1, y:-1};
 				if (change_callback) change_callback(this);
 		};
 		
-		clicker.reaction = clicker.first_click;
+		clicker.reset_reaction = function() {
+			this.reaction = this.first_click;
+		};
+		
+		clicker.reset_reaction();
 		
 		//return clicker;
 		return function (e) {
@@ -332,22 +282,45 @@
 				+ "src: " + clicker.src.x + "," + clicker.src.y + " \n"
 				+ "dst: " + clicker.dest.x + "," + clicker.dest.y + " \n";
 			document.title = m;
+			if (clicker.reaction==null) {
+				clicker.reset_reaction();
+			}
 			return clicker.reaction(e);
 		};
 	};
 	
-	function attach_signals() {
+	function start_game() {
 		var canvas = $("game_map")
-		canvas.onclick = mousedown_response("nickers", "game_map", function(o){map.set_selection(o); map.display(); } );
+		var mouse_handle = mousedown_response("nickers", "game_map", function(o){map.set_selection(o); map.display(); } );
+		canvas.onclick = mouse_handle;
+		
+		msg_system = messages_system(game_id);
+		msg_system.messages_types['set_round'] = function(msg) {
+			game_turn = msg.color;
+			mouse_handle = mousedown_response("nickers", "game_map", function(o){map.set_selection(o); map.display(); } );
+			canvas.onclick = mouse_handle;
+			//mouse_handle.reset_reaction();
+		};
+		msg_system.messages_loop();
+		
+		$("clr").value = player_color;
+		$("turn").value = game_turn;
 		return 0;
 	}
+	
 	</script>
 </head>
-<body onload="reset_focus();messages_loop();attach_signals();">
+<body onload="reset_focus();start_game();">
 	
 	<form method="get" onsubmit="return send_text('cmd');">
 		<input type="text" id="cmd" />
 	</form>
+	
+	<div>
+	player: <input type="text" name="clr" id="clr" /> <input type="button" onclick="player_color=parseInt($('clr').value,10);" /><br />
+	turn: <input type="text" name="turn" id="turn" />
+	</div>
+
 	<canvas id="game_map" width="480" height="480">you must support canvas!</canvas>  
 	<div id="history"></div>
 
