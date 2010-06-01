@@ -74,6 +74,9 @@ class move_command(user_command):
 					move_command.set_round(game.round[0])]
 		
 	def validate(self, game, msg):
+		
+		return game.is_valid_move(msg['srcX'], msg['srcY'], msg['dstX'], msg['dstY'])
+		
 		import math
 		
 		round = game.round[0]

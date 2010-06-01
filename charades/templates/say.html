@@ -1,0 +1,325 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+    <title>test</title>
+	<script type="text/javascript" src="/static/ajax.js"></script>
+	<script type="text/javascript" src="/static/json2.js"></script>
+	<script type="text/javascript" src="/static/messages.js"></script>
+	<style type="text/css">
+	#game_map {
+		border: 1px solid #000;
+	}
+	
+	#history {
+		border: 1px solid #000;
+		height: 10em;
+		overflow: auto;
+	}
+	
+	#history div {
+		border-top: 1px dashed #888;
+		padding: 1px;
+	}
+	</style>
+	
+	<script type="text/javascript">
+	var $ = function (id) {
+		return document.getElementById(id);
+	};
+
+	function reset_focus() {
+		$('cmd').focus();
+	}
+	
+	function getObjectPagePosition(obj) {
+		var obj = $(obj);
+		var posX = obj.offsetLeft;var posY = obj.offsetTop;
+		while(obj.offsetParent) {
+			posX=posX+obj.offsetParent.offsetLeft;
+			posY=posY+obj.offsetParent.offsetTop;
+			if(obj==document.getElementsByTagName('body')[0]) {
+				break
+			}
+			else {
+				obj=obj.offsetParent;
+			}
+		}
+		return {x:posX, y:posY}
+	}
+	
+	var game_id = "{{ game_id|e }}";
+	var game_turn = 11;
+	var player_name = "{{ player_name|e }}";
+	var player_color = {{ player_color }};
+	var msg_system = null;
+	var map = game_map();
+	
+	
+	function send_text(id) {
+		var obj = $(id)
+		var msg = {msg:obj.value, user:player_name, action:'say'};
+		obj.value = "";
+		msg_system.send_msg(msg, game_id);
+		reset_focus();
+		return false;
+	}
+	
+	function game_map() {
+		var obj = {}
+		
+		FT = {}
+		FT.EMPTY = 0
+		FT.HOLE  = 1
+		FT.BLOCK = 2
+		FT.BLACK = 10
+		FT.WHITE = 11
+		obj.FT = FT;
+		
+		obj.DIM = 6;
+		obj.selection = {x:-1, y:-1};
+		
+		obj.rabbits = new Array(this.DIM);
+		obj.map = new Array(this.DIM);
+		
+		// clear map
+		obj.reset_map = function () {
+			for (var x=0; x<obj.DIM; x++) {
+				this.rabbits[x] = new Array(this.DIM);
+				this.map[x] = new Array(this.DIM);
+				for (var y=0; y<this.DIM; y++) {
+					this.rabbits[x][y] = FT.EMPTY;
+					this.map[x][y] = FT.EMPTY;
+				}
+			}
+		};
+		
+		// render map
+		obj.display = function() {
+			var canvas = $("game_map");
+			var ctx = canvas.getContext('2d')
+			
+			//clear
+			ctx.fillStyle = 'rgb(255,255,255)'
+			ctx.fillRect(0,0,480,480)
+			
+			for (var y=0; y<this.DIM; y++)
+			for (var x=0; x<this.DIM; x++) {
+				if (this.selection.x==x && this.selection.y==y) 
+					ctx.fillStyle = 'rgb(200,250,200)'
+				else
+					ctx.fillStyle = 'rgb(200,200,200)'
+				ctx.fillRect(x*80+1, y*80+1, 80-2, 80-2)
+				
+				switch (this.map[x][y]) {
+					case FT.BLOCK:
+						ctx.fillStyle = 'rgb(255,255,255)'
+						ctx.fillRect(x*80+1, y*80+1, 80-2, 80-2)
+						break;
+					
+					case FT.HOLE:
+						ctx.beginPath();
+						ctx.fillStyle = 'rgb(0,200,0)'
+						ctx.arc(x*80+40, y*80+40, 38, 0, Math.PI*2, true)
+						ctx.fill();
+						ctx.beginPath();
+						ctx.fillStyle = 'rgb(100,100,100)'
+						ctx.arc(x*80+40, y*80+40, 35, 0, Math.PI*2, true)
+						ctx.fill();
+						break;
+				}
+				
+				switch (this.rabbits[x][y]) {
+					case FT.BLACK:
+						ctx.fillStyle = 'rgb(0,0,0)'
+						ctx.beginPath();
+						ctx.arc(x*80+40, y*80+40, 30, 0, Math.PI*2, true)
+						ctx.fill();
+						ctx.strokeStyle = 'rgb(2,0,250)'
+						ctx.beginPath();
+						ctx.arc(x*80+40, y*80+40, 30, 0, Math.PI*2, true)
+						ctx.stroke();
+						break;
+					
+					case FT.WHITE:
+						ctx.fillStyle = 'rgb(255,255,255)'
+						ctx.beginPath();
+						ctx.arc(x*80+40, y*80+40, 30, 0, Math.PI*2, true)
+						ctx.fill();
+						ctx.strokeStyle = 'rgb(2,0,250)'
+						ctx.beginPath();
+						ctx.arc(x*80+40, y*80+40, 30, 0, Math.PI*2, true)
+						ctx.stroke();
+						break;
+				}
+			}
+		};
+		
+		obj.set_rabbit = function(x,y,c) {
+			this.rabbits[x][y] = c;
+		}
+		
+		obj.set_map = function(x,y,c) {
+			this.map[x][y] = c;
+		}
+		
+		
+		obj.set_selection = function(pkt) {
+			if (pkt.src) {
+				this.selection = {x:pkt.src.x, y:pkt.src.y};
+			} else {
+				this.selection = {x:-1, y:-1};
+			}
+		};
+		
+		obj.reset_map();
+		return obj;
+	}
+	
+	function mousedown_response(username, map_id, change_callback) {
+		
+		var clicker = {
+			src : {x:-1, y:-1},
+			dest: {x:-1, y:-1},
+			reaction : null,
+		};
+		
+		clicker.first_click = function(ev) {
+			
+			if (player_color!=game_turn)
+				return;
+			
+			var of = getObjectPagePosition(map_id);
+			//var e = { x:ev.clientX - of.x, y:ev.clientY - of.y };
+			//var e = { x:ev.offsetX, y:ev.offsetY};
+			var e = { x:ev.pageX- of.x, y:ev.pageY - of.y };
+			e.x = Math.floor(e.x/80);
+			e.y = Math.floor(e.y/80);
+			
+			if (map.rabbits[e.x][e.y]==game_turn && map.map[e.x][e.y]==game_map().FT.EMPTY) {
+				this.src = e;
+				this.reaction = this.second_click;
+			} else {
+				this.src = {x:-1, y:-1};
+			}
+			if (change_callback) change_callback(this);
+		}
+		
+		clicker.second_click = function(ev) {
+			var of = getObjectPagePosition(map_id);
+			//var e = { x:ev.clientX - of.x, y:ev.clientY - of.y };
+			//var e = { x:ev.offsetX, y:ev.offsetY};
+			var e = { x:ev.pageX- of.x, y:ev.pageY - of.y };
+			e.x = Math.floor(e.x/80);
+			e.y = Math.floor(e.y/80);
+			
+			// move to empty field
+			if (map.rabbits[e.x][e.y]==map.FT.EMPTY) {
+				var dx = e.x - this.src.x;
+				var dy = e.y - this.src.y;
+				var cx = this.src.x + Math.floor(dx/2);
+				var cy = this.src.y + Math.floor(dy/2);
+				
+				if ((Math.abs(dx)<=1 && Math.abs(dy)<=1)
+					||
+					( // or jump -- begin
+						// jumps over your color...
+						map.rabbits[cx][cy]==map.rabbits[this.src.x][this.src.y] 
+						&&
+						// and you really jump(dist 2 fields)
+						(
+							(Math.abs(dx)==2 && Math.abs(dy)==2)
+							||
+							(Math.abs(dx)==2 && Math.abs(dy)==0)
+							||
+							(Math.abs(dx)==0 && Math.abs(dy)==2)
+						)
+					) // or jump -- end
+				) // end if
+				{
+					this.dest = e;
+					this.send_values();
+				}
+			} else if (map.rabbits[e.x][e.y]==game_turn) {
+				// unselect
+				if (this.src.x==e.x && this.src.y==e.y) {
+					this.src = {x:-1, y:-1};
+					this.dest= {x:-1, y:-1};
+					this.reaction = this.first_click;
+				// change selection
+				} else {
+					this.src = e;
+				}
+				if (change_callback) change_callback(this);
+			}
+		}
+		
+		clicker.send_values = function() {
+			var msg = {
+					user: username, action:'move',
+					'srcX': this.src.x,  'srcY': this.src.y,
+					'dstX': this.dest.x, 'dstY': this.dest.y,
+				};
+				msg_system.send_msg(msg);	
+				this.reaction = function() {};
+				this.src = {x:-1, y:-1};
+				this.dest= {x:-1, y:-1};
+				if (change_callback) change_callback(this);
+		};
+		
+		clicker.reset_reaction = function() {
+			this.reaction = this.first_click;
+		};
+		
+		clicker.reset_reaction();
+		
+		//return clicker;
+		return function (e) {
+			var m = "Color: " + game_turn + " \n"
+				+ "src: " + clicker.src.x + "," + clicker.src.y + " \n"
+				+ "dst: " + clicker.dest.x + "," + clicker.dest.y + " \n";
+			document.title = m;
+			if (clicker.reaction==null) {
+				clicker.reset_reaction();
+			}
+			return clicker.reaction(e);
+		};
+	};
+	
+	function start_game() {
+		var canvas = $("game_map")
+		var mouse_handle = mousedown_response("nickers", "game_map", function(o){map.set_selection(o); map.display(); } );
+		canvas.onclick = mouse_handle;
+		
+		msg_system = messages_system(game_id);
+		msg_system.messages_types['set_round'] = function(msg) {
+			game_turn = msg.color;
+			mouse_handle = mousedown_response("nickers", "game_map", function(o){map.set_selection(o); map.display(); } );
+			canvas.onclick = mouse_handle;
+			//mouse_handle.reset_reaction();
+		};
+		msg_system.messages_loop();
+		
+		$("clr").value = player_color;
+		$("turn").value = game_turn;
+		return 0;
+	}
+	
+	</script>
+</head>
+<body onload="reset_focus();start_game();">
+	
+	<form method="get" onsubmit="return send_text('cmd');">
+		<input type="text" id="cmd" />
+	</form>
+	
+	<div>
+	player: <input type="text" name="clr" id="clr" /> <input type="button" onclick="player_color=parseInt($('clr').value,10);" /><br />
+	turn: <input type="text" name="turn" id="turn" />
+	</div>
+
+	<canvas id="game_map" width="480" height="480">you must support canvas!</canvas>  
+	<div id="history"></div>
+
+</body>
+</html>

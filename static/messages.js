@@ -49,6 +49,7 @@ function messages_system(game_id) {
 			Ajax().get("/commands/" + game_id  + "/" + next_id,
 					{
 						onerror: function (r) {
+							alert(r.responseText);
 						},
 						onload: function(r) {
 							var data = JSON.parse(r.responseText);

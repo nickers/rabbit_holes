@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<title>Logging into system...</title>
+	<style type="text/css">
+	form {
+		width: 20em;
+		padding: 1em;
+		border: 1px solid #000;
+		text-align: center;
+		margin: auto;
+	}
+	
+	form input[type="text"] {
+		width: 18em;
+		clear: both;
+	}
+	</style>
+</head>
+<body onload="document.getElementById('username').focus();">
+	<form method="post" action="/login">
+		<h2>Give your screen name:</h2>
+		<p>
+		<input type="text" name="username" id="username" />
+		<input type="submit" value="Enter" />
+		</p>
+	</form>
+</body>
+</html>
