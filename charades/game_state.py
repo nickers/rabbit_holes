@@ -32,16 +32,31 @@ class game_state:
 			
 		self.players = {FT.WHITE:None, FT.BLACK:None}
 		self.round = [FT.WHITE, FT.BLACK]
+		self.canceled = {FT.WHITE:False, FT.BLACK:False}
+		self.finished = False
 		
 	
 	def change_round(self):
+		"""
+			False - koniec, nikt nie ma ruchów
+			True - ok, kolejny gracz wybrany
+		"""
+		first_color = self.round[0]
 		self.round = [self.round[(i+1)%len(self.round)] for i in range(len(self.round))]
+		while first_color!=self.round[0] and (self.is_player_blocked(self.round[0]) or self.canceled[self.round[0]]):
+			self.round = [self.round[(i+1)%len(self.round)] for i in range(len(self.round))]
+		
+		return first_color!=self.round[0]
 		
 	def is_valid_move(self, srcX, srcY, dstX, dstY):
 		import math
 		
 		round = self.round[0]
 		valid = True
+		
+		valid = srcX>=0 and srcY>=0 and dstX>=0 and dstY>=0
+		valid = valid and srcX<game_state.__dim and srcY<game_state.__dim
+		valid = valid and dstX<game_state.__dim and dstY<game_state.__dim
 
 		try:
 			srcColor = self.rabbits[srcX][srcY]
@@ -64,7 +79,7 @@ class game_state:
 			if dstMap!=FT.EMPTY and dstMap!=FT.HOLE:
 				valid = False
 			
-			print "valid: %s " % (valid,)
+##			print "valid: %s " % (valid,)
 			# move has valid vector
 			dx = (int)(math.fabs(srcX-dstX))
 			dy = (int)(math.fabs(srcY-dstY))
@@ -74,7 +89,7 @@ class game_state:
 			except: # invalid move
 				valid = False
 				
-			print "move validation: %s " % (valid,)
+##			print "move validation: %s " % (valid,)
 			
 			# if jump then must jump over own color
 			if dx==2 or dy==2:
@@ -83,15 +98,45 @@ class game_state:
 					valid = False
 			
 		except: # mus be invalid position
-			print " => Exception"
 			valid = False
 		
-		for y in range(6):
-			for x in range(6):
-				print self.rabbits[x][y], " ",
-			print ""
+#		for y in range(6):
+#			for x in range(6):
+#				print self.rabbits[x][y], " ",
+#			print ""
 		
 		return valid
+	
+	def is_player_blocked(self, color):
+		for y in range(game_state.__dim):
+			for x in range(game_state.__dim):
+				for d in [(0,0),(1,0),(0,1),(1,1),(2,0),(0,2),(2,2)]:
+					for m in [(1,1), (1,-1), (-1,-1), (-1,1)]:
+						if self.is_valid_move(x,y,x+d[0]*m[0],y+d[1]*m[1]):
+							return False
+		return True
+	
+	def get_player_score(self, color):
+		score = 0
+		for y in range(game_state.__dim):
+			for x in range(game_state.__dim):
+				if self.map[x][y] == FT.HOLE and self.rabbits[x][y]==color:
+					score = score +1
+		return score
+	
+	def is_game_finished(self):
+		game_end = True
+		print "sprawdzanie"
+		
+		for p in self.players.iterkeys():
+			print " gracz : ", p
+			if not self.is_player_blocked(p) and not self.canceled[p]:
+				game_end = False
+			print "  --: ", game_end
+				
+		print "wynik: ", game_end
+		return game_end
+				
 	
 	@staticmethod
 	def get(game_id):		

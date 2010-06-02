@@ -54,7 +54,20 @@ class move_command(user_command):
 			self.user = ''
 			self.color = c
 		def process(self, game):
-			pass
+			if game.is_player_blocked(game.round[0]):
+				game.change_round()
+	
+	class set_score(user_command):
+		def __init__(self, game):
+			self.action = 'set_score'
+			self.user = '';
+			self.black = 0
+			self.white = 0
+		
+		def process(self, game):
+			self.black = game.get_player_score(FT.BLACK)
+			self.white = game.get_player_score(FT.WHITE)
+			
 	
 	def process(self, game, msg):
 		import math
@@ -67,10 +80,12 @@ class move_command(user_command):
 		
 		if (dx>=2 or dy>=2):
 			return [move_command.add_rabbit(who, msg['dstX'], msg['dstY'], col),
+					move_command.set_score(game),
 					move_command.set_round(game.round[0])]
 		else:
 			return [move_command.del_rabbit(who, msg['srcX'], msg['srcY']),
 					move_command.add_rabbit(who, msg['dstX'], msg['dstY'], col),
+					move_command.set_score(game),
 					move_command.set_round(game.round[0])]
 		
 	def validate(self, game, msg):
@@ -103,7 +118,6 @@ class move_command(user_command):
 			if dstMap!=FT.EMPTY and dstMap!=FT.HOLE:
 				valid = False
 			
-			print "valid: %s " % (valid,)
 			# move has valid vector
 			dx = (int)(math.fabs(msg['srcX']-msg['dstX']))
 			dy = (int)(math.fabs(msg['srcY']-msg['dstY']))
@@ -112,14 +126,10 @@ class move_command(user_command):
 				validMoves.index((dx,dy))
 			except: # invalid move
 				valid = False
-				
-			print "vxxxxalid: %s " % (valid,)
 			
 			# if jump then must jump over own color
 			if dx==2 or dy==2:
-				print "++++ >> ", int((msg['srcX']+msg['dstX'])/2), " ; ", int((msg['srcY']+msg['dstY'])/2)
 				over = game.rabbits[int((msg['srcX']+msg['dstX'])/2)][int((msg['srcY']+msg['dstY'])/2)]
-				print round, " over ", over
 				if over!=round:
 					valid = False
 			
@@ -127,10 +137,10 @@ class move_command(user_command):
 			print " => Exception"
 			valid = False
 		
-		for y in range(6):
-			for x in range(6):
-				print game.rabbits[x][y], " ",
-			print ""
+#		for y in range(6):
+#			for x in range(6):
+#				print game.rabbits[x][y], " ",
+#			print ""
 		
 		return valid
 		
@@ -159,7 +169,6 @@ class send_map_command(user_command):
 	def __init__(self, user=None):
 		self.action = 'send_map'
 		self.user = user
-		
 	
 	def validate(self, game, msg):
 		return True
@@ -168,28 +177,89 @@ class send_map_command(user_command):
 		who = msg['user']
 		dim = len(game.map)
 		return ([self.set_rabbit(who,x,y,game.rabbits[x][y]) for y in range(dim) for x in range(dim)]
-			+ [self.set_map(who,x,y,game.map[x][y]) for y in range(dim) for x in range(dim)])
+			+ [self.set_map(who,x,y,game.map[x][y]) for y in range(dim) for x in range(dim)]
+			+ [move_command.set_score(game), move_command.set_round(game.round[0])])
+
+
+class finish_game_command(user_command):
+	
+	class finnish_msg(user_command):
+		def __init__(self, winner):
+			self.action = 'finish_game'
+			self.user = ''
+			self.winner = winner
+
+		def process(self, game):
+			pass
+		
+	""" zakoncz gre """
+	def __init__(self):
+		self.action = 'finish_game'
+		self.user = ''
+		self.winner = ''
+	
+	def validate(self, game, msg):
+		return (msg['user']=='--hidden--')
+	
+	def process(self, game, msg):
+		win_score = -1
+		game.finished = True
+		for p in game.players.iterkeys():
+			sco = game.get_player_score(p)
+			if sco>win_score:
+				win_score = sco
+				self.winner = game.players[p]
+		return [move_command.set_round(-1), finish_game_command.finnish_msg(self.winner)]
+		
+class cancel_game_command(user_command):
+	def __init__(self):
+		None
+		
+	def validate(self, game, msg):
+		return True
+		
+	def process(self, game, msg):
+		color = -1
+		print 'cancel game: ', msg, game.players
+		for p in game.players.iterkeys():
+			if game.players[p]==msg['user']:
+				color = p
+		print 'cancel game: ', color
+		game.canceled[color] = True
+		game.change_round()
+		return [move_command.set_round(game.round[0])]
 
 commands_map = {
 	'move' : move_command,
 	#'exit' : exit_command,
 	'say' : say_command,
-	'send_map' :  send_map_command
+	'send_map' :  send_map_command,
+	'cancel_game' : cancel_game_command,
+	'finish_game' : finish_game_command
 }
 
 def process_message(game, msg):
-	print msg
+	print "Process : ", msg['action']
+	
+	if (game.finished):
+		return False
+	
 	proc = commands_map[msg['action']]()
 	
 	valid_round = (game.players[game.round[0]]==msg['user'])
 	valid_round = True
 	
+	print "3"
 	if valid_round and proc.validate(game, msg):
 		msgs = proc.process(game, msg)
 		cnt = len(msgs)
 		for i in range(cnt):
-			game.queue.add_message(msgs[i].__dict__, i==cnt-1)
 			msgs[i].process(game)
+			game.queue.add_message(msgs[i].__dict__, i==cnt-1)
+		if (game.is_game_finished()):
+			print "fisnih agame msg"
+			fmsg = {'action':'finish_game', 'user':'--hidden--'}
+			return process_message(game, fmsg)
 		return True
 	return False
 

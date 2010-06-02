@@ -5,7 +5,7 @@ function messages_system(game_id) {
 	obj.messages_types = {
 		'say' : function(msg) {
 			var div = document.createElement("div");
-			div.innerText = msg.msg;
+			div.innerText = msg.user + ": " + msg.msg;
 			$("history").insertBefore(div, $("history").firstChild);
 		},
 		'set_rabbit' : function(msg) {
@@ -13,6 +13,15 @@ function messages_system(game_id) {
 		},
 		'set_map' : function(msg) {
 			map.set_map(msg.x, msg.y, msg.color)
+		},
+		'set_score' : function(msg) {
+			if ($('white_score')) $('white_score').innerText = msg.white;
+			if ($('black_score')) $('black_score').innerText = msg.black;
+		},
+		'finish_game' : function(msg) {
+			game_turn = -1;
+			if ($("game_finish_msg")) $("game_finish_msg").innerText = "Game finished";
+			$("cancel_button").disabled = true;
 		}/*,
 		'set_round' : function(msg) {
 			game_turn = msg.color
@@ -45,13 +54,15 @@ function messages_system(game_id) {
 	
 	obj.messages_loop = function() {
 		var next_id = 0;
+		var errors_in_row = 0;
 		function request_next_part() {
 			Ajax().get("/commands/" + game_id  + "/" + next_id,
 					{
 						onerror: function (r) {
-							alert(r.responseText);
+							errors_in_row = errors_in_row +1;
 						},
 						onload: function(r) {
+							errors_in_row = 0;
 							var data = JSON.parse(r.responseText);
 							for (x in data) {
 								obj.process_message(data[x]);
@@ -60,7 +71,10 @@ function messages_system(game_id) {
 							obj.make_callbacks();
 						},
 						onfinish: function(r) {
-							request_next_part();
+							if (errors_in_row<10)
+								request_next_part();
+							else
+								alert("Problemy z komunikacją z serwerem. Proszę odświeżyć stronę.");
 						}
 						// todo ON_ERROR reaction!
 					}

@@ -55,7 +55,7 @@ class ajax_queue:
 		try:
 			part = self.data[next_message:]
 			encoded = json.dumps(part)
-			print "process: %s" %(encoded,)
+##			print "process: %s" %(encoded,)
 			dest.write(encoded)
 			dest.finish()
 		except:

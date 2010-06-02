@@ -111,6 +111,7 @@ class ListGamesProcess(resource.Resource):
 	isLeaf = True
 	
 	def render(self, request):
+		username = request.getCookie('username')
 		tpl_env = Environment(loader=PackageLoader('charades','templates'))
 		tpl = tpl_env.get_template("list_games.html")
 		list = game_state.list()
@@ -123,7 +124,7 @@ class ListGamesProcess(resource.Resource):
 				'black' : game.players[FT.BLACK]
 			}
 			games.append(game_dest)
-		return unicode(tpl.render({'games':games})).encode('utf-8')
+		return unicode(tpl.render({'games':games, 'username':username})).encode('utf-8')
 		
 
 class CreateGameProcess(resource.Resource):

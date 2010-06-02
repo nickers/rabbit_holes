@@ -12,6 +12,8 @@
 	
 	td {
 		border-bottom: 1px dashed #999;
+		text-align: center;
+		font-size: 0.7em;
 	}
 	th {
 		background-color: #000;
@@ -33,14 +35,27 @@
 		</tr>
 	{% for game in games %}
 		<tr>
-			<td>{{ game.id }}</td>
-			<td>{{ game.white|default('---', true) }}</td>
+			<td>#{{ game.id }}</td>
+			
+			<td>
+				{% if game.white==username %}
+					<input type="button" onclick="this.disabled=true;document.location='/game/{{ game.id }}'" value="{{ game.white }}" />
+				{% else %}
+					{{ game.white|default('---', true) }}
+				{% endif %}
+			</td>
 			
 			<td>
 				{% if game.black %}
-					{{ game.black }}
-				{% else %}
+					{% if game.black==username %}
+						<input type="button" onclick="this.disabled=true;document.location='/game/{{ game.id }}'" value="{{ game.black }}" />
+					{% else %}
+						{{ game.black }}
+					{% endif %}
+				{% elif game.white!=username %}
 					<input type="button" onclick="this.disabled=true;document.location='/enter_game/{{ game.id }}'" value="Play!" />
+				{% else %}
+					* waiting *
 				{% endif %}
 			</td>
 			<td>{{ game.state }}</td>
