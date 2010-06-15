@@ -27,10 +27,15 @@ class Game(resource.Resource):
 			if len(request.postpath)>=1:
 				game_id = unicode(request.postpath[0])
 		except:
-			None
+			game_id = ""
 		
-		if game_id.strip()=="" or username.strip()=="":
+		if username.strip()=="":
 			request.redirect('/login/')
+			request.finish()
+			return
+		
+		if game_id.strip()=="" or not game_state.exists(game_id):
+			request.redirect('/list_games/')
 			request.finish()
 			return
 		
