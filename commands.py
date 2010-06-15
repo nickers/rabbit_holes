@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
 from charades.game_state import game_state, FT
+from twisted.internet import reactor
+
+def destroy_finished_game(game_id):
+	game_state.destroy(game_id)
 
 class user_command:
 	def __init__(self):
@@ -134,13 +138,8 @@ class move_command(user_command):
 					valid = False
 			
 		except: # mus be invalid position
-			print " => Exception"
+			print " => Exception "
 			valid = False
-		
-#		for y in range(6):
-#			for x in range(6):
-#				print game.rabbits[x][y], " ",
-#			print ""
 		
 		return valid
 		
@@ -209,6 +208,9 @@ class finish_game_command(user_command):
 			if sco>win_score:
 				win_score = sco
 				self.winner = game.players[p]
+		
+		reactor.callLater(15, destroy_finished_game, game.id)
+		
 		return [move_command.set_round(-1), finish_game_command.finnish_msg(self.winner)]
 		
 class cancel_game_command(user_command):
@@ -220,11 +222,11 @@ class cancel_game_command(user_command):
 		
 	def process(self, game, msg):
 		color = -1
-		print 'cancel game: ', msg, game.players
+
 		for p in game.players.iterkeys():
 			if game.players[p]==msg['user']:
 				color = p
-		print 'cancel game: ', color
+
 		game.canceled[color] = True
 		game.change_round()
 		return [move_command.set_round(game.round[0])]
@@ -239,7 +241,6 @@ commands_map = {
 }
 
 def process_message(game, msg):
-	print "Process : ", msg['action']
 	
 	if (game.finished):
 		return False
@@ -249,7 +250,6 @@ def process_message(game, msg):
 	valid_round = (game.players[game.round[0]]==msg['user'])
 	valid_round = True
 	
-	print "3"
 	if valid_round and proc.validate(game, msg):
 		msgs = proc.process(game, msg)
 		cnt = len(msgs)
@@ -257,7 +257,6 @@ def process_message(game, msg):
 			msgs[i].process(game)
 			game.queue.add_message(msgs[i].__dict__, i==cnt-1)
 		if (game.is_game_finished()):
-			print "fisnih agame msg"
 			fmsg = {'action':'finish_game', 'user':'--hidden--'}
 			return process_message(game, fmsg)
 		return True

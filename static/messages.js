@@ -5,7 +5,7 @@ function messages_system(game_id) {
 	obj.messages_types = {
 		'say' : function(msg) {
 			var div = document.createElement("div");
-			div.innerText = msg.user + ": " + msg.msg;
+			setText(div, msg.user + ": " + msg.msg);
 			$("history").insertBefore(div, $("history").firstChild);
 		},
 		'set_rabbit' : function(msg) {
@@ -15,12 +15,12 @@ function messages_system(game_id) {
 			map.set_map(msg.x, msg.y, msg.color)
 		},
 		'set_score' : function(msg) {
-			if ($('white_score')) $('white_score').innerText = msg.white;
-			if ($('black_score')) $('black_score').innerText = msg.black;
+			setText($('white_score'), msg.white);
+			setText($('black_score'), msg.black);
 		},
 		'finish_game' : function(msg) {
 			game_turn = -1;
-			if ($("game_finish_msg")) $("game_finish_msg").innerText = "Game finished";
+			setText($("game_finish_msg"), "Game finished");
 			$("cancel_button").disabled = true;
 		}/*,
 		'set_round' : function(msg) {
@@ -43,9 +43,9 @@ function messages_system(game_id) {
 		var type = msg.action;
 		func = this.messages_types[type];
 		if (typeof func == 'function') {
-			var div = document.createElement("div");
-			div.innerText = "# Action: " + JSON.stringify(msg);
-			$("history").insertBefore(div, $("history").firstChild);
+//			var div = document.createElement("div");
+//			div.innerText = "# Action: " + JSON.stringify(msg);
+//			$("history").insertBefore(div, $("history").firstChild);
 			func(msg);
 		}
 		else

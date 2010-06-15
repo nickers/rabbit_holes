@@ -125,16 +125,10 @@ class game_state:
 		return score
 	
 	def is_game_finished(self):
-		game_end = True
-		print "sprawdzanie"
-		
+		game_end = True		
 		for p in self.players.iterkeys():
-			print " gracz : ", p
 			if not self.is_player_blocked(p) and not self.canceled[p]:
 				game_end = False
-			print "  --: ", game_end
-				
-		print "wynik: ", game_end
 		return game_end
 				
 	
@@ -164,7 +158,12 @@ class game_state:
 		game_state.__states[game_id] = game_state(game_id)
 		print "  --> ", game_id
 		return game_id
-		
+
+	@staticmethod
+	def destroy(game_id):
+		if (game_state.exists(game_id)):
+			game_state.__states.pop(game_id)
+
 	@staticmethod
 	def list():
 		return game_state.__states.keys()

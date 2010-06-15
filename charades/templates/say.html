@@ -47,6 +47,13 @@
 	var $ = function (id) {
 		return document.getElementById(id);
 	};
+	
+	var setText = function(o,t) {
+		if (o) {
+			if (o.innerText!=null) o.innerText = t;
+			if (o.textContent!=null) o.textContent = t;
+		}
+	};
 
 	function reset_focus() {
 		$('cmd').focus();
@@ -111,7 +118,7 @@
 	function game_map() {
 		var obj = {}
 		
-		FT = {}
+		var FT = {}
 		FT.EMPTY = 0
 		FT.HOLE  = 1
 		FT.BLOCK = 2
@@ -343,7 +350,9 @@
 			game_turn = msg.color;
 			mouse_handle = mousedown_response("nickers", "game_map", function(o){map.set_selection(o); map.display(); } );
 			canvas.onclick = mouse_handle;
-			$("turn").innerText = (msg.color==player_color) ? "Your move" : "Oponent move";
+			//$("turn").innerText = (msg.color==player_color) ? "Your move" : "Oponent move";
+			who_move = (msg.color==player_color) ? "Your move" : "Oponent move";
+			setText($("turn"), who_move);
 			$("cancel_button").disabled == (game_turn!=player_color);
 			//mouse_handle.reset_reaction();
 		};
@@ -369,7 +378,7 @@
 	<div id="score_table">
 		Biały: <div class="score" id="white_score">0</div>
 		Czarny: <div class="score" id="black_score">0</div>
-		<div id="game_finish_msg"></div>
+		<div id="game_finish_msg">...</div>
 		<input type="button" id="cancel_button" value="Zakoncz gre" onclick="cancel_game();" />
 	</div>
 

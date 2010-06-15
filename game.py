@@ -43,7 +43,6 @@ class Game(resource.Resource):
 		### game_id, player_name, player_color
 		tpl_env = Environment(loader=PackageLoader('charades','templates'))
 		tpl = tpl_env.get_template("say.html")
-		print {'game_id':game_id, 'player_name':username, 'player_color':color}
 		return unicode(tpl.render({'game_id':game_id, 'player_name':username, 'player_color':color})).encode('utf-8')
 
 
@@ -84,10 +83,8 @@ class GameCommandProcess(resource.Resource):
 		command = request.content.read()
 		command = json.loads(command)
 
-		#ensure_game_exists(game_id)
 		game = game_state.get(game_id)
-		print process_message(game, command)
-		#game.queue.add_message(command);
+		process_message(game, command)
 		
 		return "OK"
 
@@ -118,12 +115,13 @@ class ListGamesProcess(resource.Resource):
 		games = []
 		for id in list:
 			game = game_state.get(id)
-			game_dest = {
-				'id' : game.id,
-				'white' : game.players[FT.WHITE],
-				'black' : game.players[FT.BLACK]
-			}
-			games.append(game_dest)
+			if not game.finished:
+				game_dest = {
+					'id' : game.id,
+					'white' : game.players[FT.WHITE],
+					'black' : game.players[FT.BLACK]
+				}
+				games.append(game_dest)
 		return unicode(tpl.render({'games':games, 'username':username})).encode('utf-8')
 		
 
@@ -145,7 +143,6 @@ class EnterGameProcess(resource.Resource):
 		game_id = ensure_game_exists(username, game_id)
 		game = game_state.get(game_id)
 		game.players[FT.BLACK] = username
-		print 'GAME enger: /game/' + game_id
 		request.redirect('/game/' + unicode(game_id).encode('utf-8'))
 		request.finish()
 		return '/game/' + game_id
