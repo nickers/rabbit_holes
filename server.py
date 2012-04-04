@@ -20,6 +20,5 @@ root.putChild('list_games', ListGamesProcess())
 #root.processors = { '.py': script.ResourceScript }
 root.putChild("doc", static.File("/usr/share/doc"))
 reactor.listenTCP(1080, server.Site(root))
-reactor.listenTCP(80, server.Site(root))
 reactor.run()
 

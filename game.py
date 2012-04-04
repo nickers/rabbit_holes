@@ -31,13 +31,13 @@ class Game(resource.Resource):
 		
 		if username.strip()=="":
 			request.redirect('/login/')
-			request.finish()
-			return
+#			request.finish()
+			return ""
 		
 		if game_id.strip()=="" or not game_state.exists(game_id):
 			request.redirect('/list_games/')
-			request.finish()
-			return
+#			request.finish()
+			return ""
 		
 		game = game_state.get(game_id)
 		color = -1
@@ -98,21 +98,21 @@ class LoginProcess(resource.Resource):
 	isLeaf = True
 	
 	def render(self, request):
+		print "login"
 		if 'username' in request.args and request.args['username'][0].strip()!='':
 			username = request.args['username'][0]
 			request.addCookie('username', username)
 			request.redirect('list_games')
-			request.finish()
 		else:
 			request.redirect('/enter_name.html')
-			request.finish()
-		return "WHAT ARE YOU DOING HERE?! There was some error on server..."
+		return ""
 
 
 class ListGamesProcess(resource.Resource):
 	isLeaf = True
 	
 	def render(self, request):
+		print "list games"
 		username = request.getCookie('username')
 		tpl_env = Environment(loader=PackageLoader('charades','templates'))
 		tpl = tpl_env.get_template("list_games.html")
@@ -137,8 +137,9 @@ class CreateGameProcess(resource.Resource):
 		username = request.getCookie('username')
 		game_id = ensure_game_exists(username)
 		request.redirect('/game/' + game_id)
-		request.finish()
-		
+#		request.finish()
+		return ""
+
 class EnterGameProcess(resource.Resource):
 	isLeaf = True
 	
@@ -149,7 +150,5 @@ class EnterGameProcess(resource.Resource):
 		game = game_state.get(game_id)
 		game.players[FT.BLACK] = username
 		request.redirect('/game/' + unicode(game_id).encode('utf-8'))
-		request.finish()
-		return '/game/' + game_id
-
-		
+#		request.finish()
+		return str(u'/game/%s'%game_id)
