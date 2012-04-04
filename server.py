@@ -4,10 +4,10 @@ from twisted.web import static, server
 from game import Game, GameCommandsWait, GameCommandProcess, CreateGameProcess, EnterGameProcess, LoginProcess, ListGamesProcess
 from twisted.python import log
 import sys
-log.startLogging(sys.stdout)
+## NO-NO for logging now ## log.startLogging(sys.stdout)
 
 root = static.File("./")
-root.indexNames = [ 'index.html' ]
+root.indexNames = ['index.html']
 
 root.putChild('game', Game())
 root.putChild('commands', GameCommandsWait())
