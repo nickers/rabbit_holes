@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
-from twisted.web import resource, server, util
-from twisted.web.static import Registry
-from twisted.internet import reactor, defer
+from twisted.web import resource, server
 import simplejson as json
-from jinja2 import Template, Environment, PackageLoader
+from jinja2 import Environment, PackageLoader
 from commands import process_message, send_map_command
 from charades.ajax_queue import *
 from charades.game_state import game_state, FT
@@ -17,7 +15,7 @@ class Game(resource.Resource):
 	isLeaf = True
 	
 	def __init__(self):
-		print "Init game"
+		None
 
 	def render(self, request):
 		username = request.getCookie('username')
@@ -98,13 +96,12 @@ class LoginProcess(resource.Resource):
 	isLeaf = True
 	
 	def render(self, request):
-		print "login"
 		if 'username' in request.args and request.args['username'][0].strip()!='':
 			username = request.args['username'][0]
 			request.addCookie('username', username)
 			request.redirect('list_games')
 		else:
-			request.redirect('/enter_name.html')
+			request.redirect('/static/enter_name.html')
 		return ""
 
 
@@ -112,7 +109,6 @@ class ListGamesProcess(resource.Resource):
 	isLeaf = True
 	
 	def render(self, request):
-		print "list games"
 		username = request.getCookie('username')
 		tpl_env = Environment(loader=PackageLoader('charades','templates'))
 		tpl = tpl_env.get_template("list_games.html")
@@ -150,5 +146,6 @@ class EnterGameProcess(resource.Resource):
 		game = game_state.get(game_id)
 		game.players[FT.BLACK] = username
 		request.redirect('/game/' + unicode(game_id).encode('utf-8'))
-#		request.finish()
 		return str(u'/game/%s'%game_id)
+
+		

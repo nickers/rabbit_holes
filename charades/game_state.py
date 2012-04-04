@@ -145,7 +145,7 @@ class game_state:
 
 	@staticmethod
 	def create(game_id=None):
-		print "Create game: ", game_id		
+#		print "Create game: ", game_id		
 		if game_state.exists(game_id):
 			return False
 		
@@ -156,7 +156,7 @@ class game_state:
 				game_id = game_id + random.choice(letters)
 		
 		game_state.__states[game_id] = game_state(game_id)
-		print "  --> ", game_id
+#		print "  --> ", game_id
 		return game_id
 
 	@staticmethod

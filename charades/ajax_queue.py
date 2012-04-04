@@ -51,7 +51,7 @@ class ajax_queue:
 		return None
 	
 	def __send_part(self, dest, next_message):
-		print dest, " == ", next_message
+#		print dest, " == ", next_message
 		try:
 			part = self.data[next_message:]
 			encoded = json.dumps(part)

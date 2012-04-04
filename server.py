@@ -1,11 +1,9 @@
 # -*- coding: utf-8 -*-
 from twisted.internet import reactor
-from twisted.web import static, server, script
-from hello import *
-from game import *
+from twisted.web import static, server
+from game import Game, GameCommandsWait, GameCommandProcess, CreateGameProcess, EnterGameProcess, LoginProcess, ListGamesProcess
 
 root = static.File("./")
-root.putChild('test', Example())
 
 root.putChild('game', Game())
 root.putChild('commands', GameCommandsWait())
@@ -17,8 +15,6 @@ root.putChild('enter_game', EnterGameProcess())
 root.putChild('login', LoginProcess())
 root.putChild('list_games', ListGamesProcess())
 
-#root.processors = { '.py': script.ResourceScript }
-root.putChild("doc", static.File("/usr/share/doc"))
 reactor.listenTCP(1080, server.Site(root))
 reactor.run()
 
